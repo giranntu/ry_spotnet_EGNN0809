@@ -55,16 +55,13 @@ venv.bak/
 
 # Log files
 *.log
-step2_output.log
 
 # Large CSV files
 *_201901_202507.csv
-data_issues_detailed.csv
 
 # Results and evaluation files
 evaluation_results_*.json
 *.png
-results.ipynb
 
 # Temporary files
 *.tmp
