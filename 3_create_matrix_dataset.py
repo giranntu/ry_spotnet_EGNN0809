@@ -12,7 +12,7 @@ from glob import glob
 import h5py
 from collections import OrderedDict
 
-def generate_matrices(source='price'):
+def generate_matrices(source='price', suffix='30min'):
     
     ################################### PRICES################################################
     if source == 'price':
@@ -28,7 +28,7 @@ def generate_matrices(source='price'):
         df = pd.read_csv(filename, header = None)
         # df = df.stack().reset_index(drop=True) FIXED MISTAKE
         df = pd.concat([df[col] for col in df], ignore_index=True)
-        pairs = filename.split('\\')[-1].split('.csv')[0]
+        pairs = os.path.basename(filename).split('.csv')[0]
         symbols.extend(pairs.split('_'))
         hist_covs[pairs] = df.values
         
@@ -39,7 +39,7 @@ def generate_matrices(source='price'):
         df = pd.read_csv(filename, header=None)
         # df = df.stack().reset_index(drop=True) FIXED MISTAKE
         df = pd.concat([df[col] for col in df], ignore_index=True)
-        symbol = filename.split('\\')[-1].split('.')[0]
+        symbol = os.path.basename(filename).split('.')[0]
         df.name = symbol
         df_to_concat.append(df)
         
@@ -91,29 +91,36 @@ def are_keys_ordered_as_numbers(dictionary):
 
 if __name__=='__main__':
     
-    vol = generate_matrices(source='price')
-    assert all(int(list(vol.keys())[i]) <= int(list(vol.keys())[i + 1]) for i in range(len(list(vol.keys())) - 1))
+    # Check if 30-minute data exists (from script 2)
+    import os
+    if os.path.exists("processed_data/vols_mats_30min.h5"):
+        print("✅ 30-minute HDF5 files already exist from script 2")
+        print("   Files: vols_mats_30min.h5 and volvols_mats_30min.h5")
+        print("   These were created directly by 2_organize_prices_as_tables.py")
+        print("   Script 3 is not needed for 30-minute data processing")
+    else:
+        # Legacy daily data processing (if needed)
+        suffix = 'taq'  # For daily data
+        
+        vol = generate_matrices(source='price', suffix=suffix)
+        assert all(int(list(vol.keys())[i]) <= int(list(vol.keys())[i + 1]) for i in range(len(list(vol.keys())) - 1))
 
-    volvol = generate_matrices(source='vol')
-    assert all(int(list(volvol.keys())[i]) <= int(list(volvol.keys())[i + 1]) for i in range(len(list(volvol.keys())) - 1))
-    
+        volvol = generate_matrices(source='vol', suffix=suffix)
+        assert all(int(list(volvol.keys())[i]) <= int(list(volvol.keys())[i + 1]) for i in range(len(list(volvol.keys())) - 1))
+        
+        # align observation
+        vol = {k: v for k, v in sorted(vol.items(), key=lambda x: int(x[0]))[:len(volvol)]}
 
-    # align observation
-    vol = {k: v for k, v in sorted(vol.items(), key=lambda x: int(x[0]))[:len(volvol)]}
-
-
-    # Save the covariance matrices in an HDF5 file
-    with h5py.File("processed_data/vols_mats_taq.h5", "w") as f:
-    # with h5py.File("processed_data/vols_mats_taq_202306_09.h5", "w") as f:
-        for key, value in vol.items():
-            # Create a dataset with the same name as the key and store the value
-            f.create_dataset(str(key), data=value, dtype=np.float64)
-    # Save the covariance matrices in an HDF5 file
-    with h5py.File("processed_data/volvols_mats_taq.h5", "w") as f:
-    # with h5py.File("processed_data/volvols_mats_taq_202306_09.h5", "w") as f:
-        for key, value in volvol.items():
-            # Create a dataset with the same name as the key and store the value
-            f.create_dataset(str(key), data=value, dtype=np.float64)
+        # Save the covariance matrices in an HDF5 file
+        with h5py.File(f"processed_data/vols_mats_{suffix}.h5", "w") as f:
+            for key, value in vol.items():
+                # Create a dataset with the same name as the key and store the value
+                f.create_dataset(str(key), data=value, dtype=np.float64)
+        # Save the covariance matrices in an HDF5 file
+        with h5py.File(f"processed_data/volvols_mats_{suffix}.h5", "w") as f:
+            for key, value in volvol.items():
+                # Create a dataset with the same name as the key and store the value
+                f.create_dataset(str(key), data=value, dtype=np.float64)
 
 # Code left here for further check
 # # Load back the data

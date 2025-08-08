@@ -27,12 +27,12 @@ num_heads: 6
 concat_heads: True
 activation: 'relu'
 optimizer: 'adam'
-learning_rate: 0.001
+learning_rate: 0.0001
 negative_slope: 0.2
 dropout_att: 0.0
 dropout: 0.1
 standardize: False
-num_epochs: 3
+num_epochs: 100
 tolerance: 1e-9
 # optuna
 n_trials: 50

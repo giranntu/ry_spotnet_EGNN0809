@@ -1,27 +1,44 @@
 #!/usr/bin/env python3
 """
-SpotV2Net (GNN) Training for 30-Minute Intraday Volatility Prediction
-======================================================================
+LSTM Training for 30-Minute Intraday Volatility Prediction
+===========================================================
 Correctly uses 30-minute interval data with proper evaluation metrics
 """
 
-import torch
 import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from torch_geometric.loader import DataLoader
 import os
 import yaml
 import json
 import matplotlib.pyplot as plt
+from datetime import datetime
 import pandas as pd
 
-# Import correct models and datasets
-from utils.models import GATModel
-from utils.dataset import IntradayGNNDataset
+# Import our correct intraday dataset and evaluator
+from utils.dataset import IntradayVolatilityDataset
 from utils.evaluation_intraday import VolatilityEvaluator
 
 
-class SpotV2NetTrainer:
+class LSTMModel(nn.Module):
+    """LSTM for 30-minute interval volatility prediction"""
+    def __init__(self, input_size=930, hidden_size=256, num_layers=2, dropout=0.2):
+        super(LSTMModel, self).__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+                           batch_first=True, dropout=dropout if num_layers > 1 else 0)
+        # Output 30 values (volatilities for 30 stocks)
+        self.fc = nn.Linear(hidden_size, 30)
+        
+    def forward(self, x):
+        lstm_out, _ = self.lstm(x)
+        # Use last timestep for prediction
+        out = self.fc(lstm_out[:, -1, :])
+        return out
+
+
+class LSTMTrainer:
     def __init__(self, config_path='config/GNN_param.yaml'):
         # Load config
         with open(config_path, 'r') as f:
@@ -30,13 +47,8 @@ class SpotV2NetTrainer:
         # Update config for 30-minute data
         self.config['seq_length'] = 42  # 42 thirty-minute intervals
         
-        # Update file paths to use 30-minute data
-        self.config['volfile'] = 'processed_data/vols_mats_30min_standardized.h5'
-        self.config['volvolfile'] = 'processed_data/volvols_mats_30min_standardized.h5'
-        
         # Setup paths
-        self.model_name = self.config['modelname'] + '_30min'
-        self.output_dir = f'output/{self.model_name}_{self.config["seq_length"]}'
+        self.output_dir = f'output/LSTM_30min_{self.config["seq_length"]}'
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Training parameters
@@ -73,26 +85,25 @@ class SpotV2NetTrainer:
             )
         self.evaluator = VolatilityEvaluator(scaler_file)
         print(f"Loaded evaluator with scaler parameters from {scaler_file}")
-        
-    def load_data(self):
-        """Load and split 30-minute intraday data"""
-        print("Loading 30-minute intraday data for GNN...")
+            
+    def prepare_data(self):
+        """Load and prepare 30-minute intraday data"""
+        print("Loading 30-minute intraday volatility data...")
         
         self.num_workers = min(4, os.cpu_count() or 1)
         
+        # Use the correct 30-minute data files
+        vol_file = 'processed_data/vols_mats_30min_standardized.h5'
+        volvol_file = 'processed_data/volvols_mats_30min_standardized.h5'
+        
         # Check if files exist
-        if not os.path.exists(self.config['volfile']):
-            raise FileNotFoundError(f"30-minute data not found: {self.config['volfile']}\nPlease run scripts 2 and 4 first!")
+        if not os.path.exists(vol_file):
+            raise FileNotFoundError(f"30-minute data not found: {vol_file}\nPlease run scripts 2 and 4 first!")
         
-        # Create GNN datasets with proper temporal splits
-        # CRITICAL: Each dataset is created separately to prevent data leakage
-        print("Creating graph datasets for 30-minute intervals with temporal splits...")
-        
-        # Create separate datasets for each split
-        self.train_dataset = IntradayGNNDataset(
-            vol_file=self.config['volfile'],
-            volvol_file=self.config['volvolfile'],
-            root=f'processed_data/intraday_gnn_30min_{self.config["seq_length"]}_train',
+        # Create datasets using IntradayVolatilityDataset
+        self.train_dataset = IntradayVolatilityDataset(
+            vol_file=vol_file,
+            volvol_file=volvol_file,
             seq_length=self.config['seq_length'],
             intervals_per_day=13,
             split='train',
@@ -100,10 +111,9 @@ class SpotV2NetTrainer:
             val_ratio=0.2
         )
         
-        self.val_dataset = IntradayGNNDataset(
-            vol_file=self.config['volfile'],
-            volvol_file=self.config['volvolfile'],
-            root=f'processed_data/intraday_gnn_30min_{self.config["seq_length"]}_val',
+        self.val_dataset = IntradayVolatilityDataset(
+            vol_file=vol_file,
+            volvol_file=volvol_file,
             seq_length=self.config['seq_length'],
             intervals_per_day=13,
             split='val',
@@ -111,10 +121,9 @@ class SpotV2NetTrainer:
             val_ratio=0.2
         )
         
-        self.test_dataset = IntradayGNNDataset(
-            vol_file=self.config['volfile'],
-            volvol_file=self.config['volvolfile'],
-            root=f'processed_data/intraday_gnn_30min_{self.config["seq_length"]}_test',
+        self.test_dataset = IntradayVolatilityDataset(
+            vol_file=vol_file,
+            volvol_file=volvol_file,
             seq_length=self.config['seq_length'],
             intervals_per_day=13,
             split='test',
@@ -122,12 +131,12 @@ class SpotV2NetTrainer:
             val_ratio=0.2
         )
         
-        print(f"\n30-Minute GNN Data Splits:")
-        print(f"  Train: {len(self.train_dataset)} graphs")
-        print(f"  Val: {len(self.val_dataset)} graphs")
-        print(f"  Test: {len(self.test_dataset)} graphs")
+        print(f"\n30-Minute Intraday Data Splits:")
+        print(f"  Train: {len(self.train_dataset)} samples")
+        print(f"  Val: {len(self.val_dataset)} samples")
+        print(f"  Test: {len(self.test_dataset)} samples")
         
-        # Create dataloaders
+        # Create data loaders
         self.train_loader = DataLoader(
             self.train_dataset, 
             batch_size=self.config['batch_size'], 
@@ -156,34 +165,19 @@ class SpotV2NetTrainer:
         )
         
     def create_model(self):
-        """Initialize GNN model with correct dimensions"""
-        # Get first sample to determine feature dimensions
-        sample = self.train_dataset[0]
-        
-        # For 30-minute data:
-        # Node features: sequence of 42 timesteps, each with 930 features
-        # We need to reshape this appropriately
-        num_node_features = sample.x.shape[1] if len(sample.x.shape) > 1 else sample.x.shape[0]
-        num_edge_features = sample.edge_attr.shape[1] if sample.edge_attr is not None and len(sample.edge_attr.shape) > 1 else 1
-        
-        print(f"Model input dimensions - Node features: {num_node_features}, Edge features: {num_edge_features}")
-        
-        self.model = GATModel(
-            num_node_features=num_node_features,
-            num_edge_features=num_edge_features,
-            num_heads=self.config['num_heads'],
-            output_node_channels=1,  # Single-step: predict 1 value per node (30 nodes = 30 stocks)
-            dim_hidden_layers=self.config['dim_hidden_layers'],
-            dropout_att=self.config['dropout_att'],
-            dropout=self.config['dropout'],
-            activation=self.config['activation'],
-            concat_heads=self.config['concat_heads'],
-            negative_slope=self.config['negative_slope'],
-            standardize=False  # Data already standardized
+        """Initialize LSTM model with correct dimensions"""
+        # Input: 930 features (30 vols + 435 covols + 30 volvols + 435 covolvols)
+        # Output: 30 volatilities (diagonal elements)
+        self.model = LSTMModel(
+            input_size=930,
+            hidden_size=256,
+            num_layers=2,
+            dropout=0.2
         ).to(self.device)
         
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config['learning_rate'])
-        self.criterion = torch.nn.MSELoss()
+        # Use MSE for training in standardized space
+        self.criterion = nn.MSELoss()
         
     def compute_metrics(self, outputs, targets):
         """Compute metrics in both standardized and original scales"""
@@ -193,16 +187,9 @@ class SpotV2NetTrainer:
         
         # If we have evaluator, compute real-scale metrics
         if self.evaluator:
-            # Convert to numpy and reshape if needed
+            # Convert to numpy
             outputs_np = outputs.detach().cpu().numpy()
             targets_np = targets.detach().cpu().numpy()
-            
-            # Ensure correct shape (should be [batch_size * n_nodes])
-            if outputs_np.ndim == 1:
-                # Reshape to [n_samples, n_features] where n_features = 30
-                n_samples = len(outputs_np) // 30
-                outputs_np = outputs_np.reshape(n_samples, 30)
-                targets_np = targets_np.reshape(n_samples, 30)
             
             # Compute all metrics including QLIKE
             metrics = self.evaluator.calculate_all_metrics(outputs_np, targets_np, is_variance=True)
@@ -223,21 +210,12 @@ class SpotV2NetTrainer:
         
         pbar = tqdm(self.train_loader, desc=f"Epoch {epoch+1}/{self.config['num_epochs']} - Train")
         for batch in pbar:
-            batch = batch.to(self.device)
+            features = batch['features'].to(self.device)
+            target = batch['target'].to(self.device)
             
             # Forward pass
-            out = self.model(batch)
-            
-            # Target is the diagonal of next interval's volatility matrix
-            target = batch.y
-            
-            # Debug shapes if mismatch
-            if out.shape != target.shape:
-                print(f"\nShape mismatch! out: {out.shape}, target: {target.shape}")
-                print(f"Batch info - x: {batch.x.shape}, edge_index: {batch.edge_index.shape}")
-                print(f"Batch ptr: {batch.ptr.shape if hasattr(batch, 'ptr') else 'N/A'}")
-                
-            loss = self.criterion(out, target)
+            outputs = self.model(features)
+            loss = self.criterion(outputs, target)
             
             # Backward pass
             self.optimizer.zero_grad()
@@ -249,7 +227,7 @@ class SpotV2NetTrainer:
             
             # Compute QLIKE for monitoring
             with torch.no_grad():
-                _, _, _, qlike = self.compute_metrics(out, target)
+                _, _, _, qlike = self.compute_metrics(outputs, target)
                 total_qlike += qlike
             
             n_batches += 1
@@ -272,16 +250,23 @@ class SpotV2NetTrainer:
         total_qlike = 0
         n_batches = 0
         
+        all_outputs = []
+        all_targets = []
+        
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validation", leave=False):
-                batch = batch.to(self.device)
-                out = self.model(batch)
-                target = batch.y
+                features = batch['features'].to(self.device)
+                target = batch['target'].to(self.device)
                 
-                mse, rmse_std, rmse_real, qlike = self.compute_metrics(out, target)
+                outputs = self.model(features)
+                
+                mse, rmse_std, rmse_real, qlike = self.compute_metrics(outputs, target)
                 total_loss += mse
                 total_qlike += qlike
                 n_batches += 1
+                
+                all_outputs.append(outputs.cpu())
+                all_targets.append(target.cpu())
         
         avg_loss = total_loss / n_batches
         avg_qlike = total_qlike / n_batches
@@ -305,7 +290,7 @@ class SpotV2NetTrainer:
             'val_rmse': self.val_rmses[-1],
             'train_qlike': self.train_qlikes[-1] if self.train_qlikes else 0,
             'val_qlike': self.val_qlikes[-1] if self.val_qlikes else 0,
-            'config': self.config
+            'patience_counter': self.patience_counter
         }
         
         # Save regular checkpoint
@@ -381,7 +366,7 @@ class SpotV2NetTrainer:
     def train(self):
         """Main training loop with early stopping"""
         print("="*80)
-        print(f"Starting SpotV2Net (GNN) Training - 30-Minute Intraday Volatility")
+        print(f"Starting LSTM Training - 30-Minute Intraday Volatility Prediction")
         print(f"Output directory: {self.output_dir}")
         print(f"Device: {self.device}")
         print(f"Batch size: {self.config['batch_size']}")
@@ -433,14 +418,15 @@ class SpotV2NetTrainer:
         
         # Save training history
         history = {
-            'train_losses': self.train_losses,
-            'val_losses': self.val_losses,
-            'train_rmses': self.train_rmses,
-            'val_rmses': self.val_rmses,
-            'train_qlikes': self.train_qlikes,
-            'val_qlikes': self.val_qlikes,
-            'best_epoch': self.best_epoch,
-            'best_val_metric': self.best_val_loss
+            'train_losses': [float(x) for x in self.train_losses],
+            'val_losses': [float(x) for x in self.val_losses],
+            'train_rmses': [float(x) for x in self.train_rmses],
+            'val_rmses': [float(x) for x in self.val_rmses],
+            'train_qlikes': [float(x) for x in self.train_qlikes],
+            'val_qlikes': [float(x) for x in self.val_qlikes],
+            'best_epoch': int(self.best_epoch),
+            'best_val_metric': float(self.best_val_loss),
+            'early_stopped': bool(self.patience_counter >= self.patience)
         }
         
         with open(os.path.join(self.output_dir, 'training_history.json'), 'w') as f:
@@ -458,6 +444,10 @@ class SpotV2NetTrainer:
     def evaluate_test(self):
         """Evaluate on test set with comprehensive metrics"""
         print("\nEvaluating on test set...")
+        
+        if len(self.test_loader) == 0:
+            print("ERROR: Test loader is empty!")
+            return None, None
         
         # Load best model
         best_checkpoint = torch.load(
@@ -477,33 +467,24 @@ class SpotV2NetTrainer:
         
         with torch.no_grad():
             for batch in tqdm(self.test_loader, desc="Test evaluation"):
-                batch = batch.to(self.device)
-                out = self.model(batch)
-                target = batch.y
+                features = batch['features'].to(self.device)
+                target = batch['target'].to(self.device)
                 
-                mse, rmse_std, rmse_real, qlike = self.compute_metrics(out, target)
+                outputs = self.model(features)
+                
+                mse, rmse_std, rmse_real, qlike = self.compute_metrics(outputs, target)
                 total_loss += mse
                 total_qlike += qlike
                 n_batches += 1
                 
-                # Collect predictions
-                out_np = out.cpu().numpy()
-                target_np = target.cpu().numpy()
-                
-                # Reshape to [n_samples, 30]
-                if out_np.ndim == 1:
-                    n_samples = len(out_np) // 30
-                    out_np = out_np.reshape(n_samples, 30)
-                    target_np = target_np.reshape(n_samples, 30)
-                
-                all_outputs.append(out_np)
-                all_targets.append(target_np)
+                all_outputs.append(outputs.cpu().numpy())
+                all_targets.append(target.cpu().numpy())
         
         test_loss = total_loss / n_batches
         test_rmse = np.sqrt(test_loss)
         test_qlike = total_qlike / n_batches
         
-        # Aggregate predictions
+        # Aggregate predictions for additional metrics
         all_outputs = np.vstack(all_outputs)
         all_targets = np.vstack(all_targets)
         
@@ -513,7 +494,7 @@ class SpotV2NetTrainer:
         r2_score = 1 - (ss_res / ss_tot)
         
         print(f"\n" + "="*60)
-        print("TEST SET EVALUATION - 30-MINUTE INTRADAY (GNN)")
+        print("TEST SET EVALUATION - 30-MINUTE INTRADAY")
         print("="*60)
         print(f"Test Loss (MSE): {test_loss:.6f}")
         print(f"Test RMSE (standardized): {test_rmse:.6f}")
@@ -539,8 +520,8 @@ class SpotV2NetTrainer:
 
 
 def main():
-    trainer = SpotV2NetTrainer()
-    trainer.load_data()
+    trainer = LSTMTrainer()
+    trainer.prepare_data()
     trainer.create_model()
     trainer.train()
     trainer.evaluate_test()

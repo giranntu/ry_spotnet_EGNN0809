@@ -1,0 +1,41 @@
+# DOW30 Stock List Configuration
+# Note: DOW replaced with AMZN due to DOW's late IPO date (March 2019)
+# AMZN provides complete historical data from 2019-01-01 onwards
+
+dow30_symbols:
+  - 'AAPL'  # Apple Inc.
+  - 'AMGN'  # Amgen Inc.
+  - 'AMZN'  # Amazon.com Inc. (replaces DOW for longer history)
+  - 'AXP'   # American Express
+  - 'BA'    # Boeing
+  - 'CAT'   # Caterpillar
+  - 'CRM'   # Salesforce
+  - 'CSCO'  # Cisco Systems
+  - 'CVX'   # Chevron
+  - 'DIS'   # Disney
+  - 'GS'    # Goldman Sachs
+  - 'HD'    # Home Depot
+  - 'HON'   # Honeywell
+  - 'IBM'   # IBM
+  - 'INTC'  # Intel
+  - 'JNJ'   # Johnson & Johnson
+  - 'JPM'   # JPMorgan Chase
+  - 'KO'    # Coca-Cola
+  - 'MCD'   # McDonald's
+  - 'MMM'   # 3M
+  - 'MRK'   # Merck
+  - 'MSFT'  # Microsoft
+  - 'NKE'   # Nike
+  - 'PG'    # Procter & Gamble
+  - 'TRV'   # Travelers
+  - 'UNH'   # UnitedHealth
+  - 'V'     # Visa
+  - 'VZ'    # Verizon
+  - 'WBA'   # Walgreens Boots Alliance
+  - 'WMT'   # Walmart
+
+# Metadata
+metadata:
+  total_symbols: 30
+  replacement_note: "DOW (Dow Inc.) replaced with AMZN (Amazon) due to DOW's IPO date of 2019-03-20"
+  data_period: "2019-01-01 to 2025-07-30"
