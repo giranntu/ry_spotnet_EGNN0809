@@ -1,0 +1,107 @@
+# Configuration for Cutting-Edge GNN Models
+# Optimized for 30-minute intraday volatility forecasting
+
+# Data parameters
+seq_length: 42  # 42 thirty-minute intervals (~3.2 trading days)
+batch_size: 16  # Optimal for GPU memory with large models
+num_workers: 4
+
+# Model architecture parameters
+hidden_dim: 256  # Hidden dimension for all models
+num_heads: 8     # Number of attention heads (for GPS/Transformer)
+num_layers: 3    # Number of GNN layers
+dropout: 0.1     # Dropout rate
+k_dynamic: 15    # Top-k for dynamic edge convolution
+
+# PNA-specific parameters
+pna_aggregators: ['mean', 'max', 'min', 'std', 'var']
+pna_scalers: ['identity', 'amplification', 'attenuation']
+pna_towers: 4
+
+# Training parameters
+num_epochs: 150
+learning_rate: 0.0005  # Initial learning rate
+min_lr: 0.000001       # Minimum learning rate for cosine annealing
+weight_decay: 0.0001   # L2 regularization
+gradient_clip: 1.0     # Gradient clipping value
+patience: 20           # Early stopping patience
+
+# Advanced training parameters
+gradient_accumulation_steps: 2  # Effective batch size = 32
+warmup_epochs: 5               # Learning rate warmup
+use_amp: true                  # Mixed precision training
+label_smoothing: 0.01          # Label smoothing for robustness
+
+# Loss function weights
+mse_weight: 1.0      # Weight for MSE loss (use MSE only for log-transformed data)
+qlike_weight: 0.0    # Weight for QLIKE loss (disabled for training, only for eval)
+uncertainty_weight: 0.05  # Weight for uncertainty regularization
+
+# Optimizer parameters
+optimizer: 'adamw'
+betas: [0.9, 0.999]
+eps: 1.0e-08
+
+# Learning rate scheduler
+scheduler: 'cosine_warm_restarts'
+T_0: 10        # Restart interval
+T_mult: 2      # Multiplier for restart interval
+
+# Model-specific configurations
+pna:
+  aggregators: ['mean', 'max', 'min', 'std', 'var', 'sum']
+  scalers: ['identity', 'amplification', 'attenuation', 'linear']
+  towers: 4
+  pre_layers: 2
+  post_layers: 2
+  divide_input: true
+
+gps_pna_hybrid:
+  num_heads: 8
+  attn_dropout: 0.1
+  edge_dim: 1
+  k_dynamic: 15
+  use_global_attention: true
+  use_local_mp: true
+
+dynamic:
+  k: 10  # Number of nearest neighbors
+  aggr: 'max'
+  num_dynamic_layers: 3
+
+mixhop:
+  powers: [0, 1, 2, 3]  # Hop powers
+  
+# Ensemble parameters (for future use)
+ensemble_size: 1
+ensemble_method: 'average'  # 'average', 'weighted', 'stacking'
+
+# Evaluation parameters
+eval_interval: 5  # Evaluate every N epochs
+save_interval: 10  # Save checkpoint every N epochs
+
+# Hardware optimization
+pin_memory: true
+persistent_workers: true
+prefetch_factor: 2
+
+# Random seed for reproducibility
+seed: 42
+
+# Paths (relative to project root)
+data_dir: 'processed_data'
+output_dir: 'output'
+model_dir: 'models'
+
+# Logging
+log_level: 'INFO'
+tensorboard: false  # Enable tensorboard logging
+wandb: false       # Enable Weights & Biases logging
+
+# Model selection criteria
+primary_metric: 'qlike'  # Primary metric for model selection
+secondary_metric: 'mse'  # Secondary metric
+
+# Data preprocessing (already done in previous scripts)
+standardize: false  # Data already standardized
+scale_factor: null  # No additional scaling needed

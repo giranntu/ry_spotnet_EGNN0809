@@ -1,0 +1,19 @@
+batch_size: 16
+gradient_clip: 0.5
+learning_rate: 5.0e-05
+model:
+  activation: gelu
+  beta: true
+  concat_heads: true
+  dropout: 0.1
+  edge_dropout: 0.05
+  hidden_dim: 256
+  num_heads: 8
+  num_layers: 4
+  use_layer_norm: true
+  use_residual: true
+modelname: TransformerGNN
+num_epochs: 100
+patience: 15
+seq_length: 42
+weight_decay: 0.0001
