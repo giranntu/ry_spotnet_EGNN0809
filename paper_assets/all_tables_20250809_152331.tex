@@ -1,0 +1,81 @@
+% IEEE Access Table Format
+\documentclass[journal]{IEEEtran}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{colortbl}
+
+% Define colors for highlighting
+\definecolor{bestcolor}{RGB}{200,255,200}
+\definecolor{secondcolor}{RGB}{220,220,255}
+
+\begin{document}
+
+% Main Results Table
+\begin{table}[!t]
+\centering
+\caption{Performance comparison of volatility forecasting models on 30-minute intraday data}
+\label{tab:main_results}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & MSE & RMSE & MAE & QLIKE & Improvement (\%) \\
+\midrule
+SpotV2Net & 9.38e-08 & 0.000306 & 0.000138 & 0.1543 & +54.30 \\
+HAR Intraday & 1.26e-07 & 0.000355 & 0.000169 & 0.2456 & +27.30 \\
+XGBoost & 1.38e-07 & 0.000371 & 0.000184 & 0.2671 & +20.91 \\
+LSTM & 1.77e-07 & 0.000421 & 0.000206 & 0.3096 & +8.34 \\
+\rowcolor{bestcolor}Naive & 1.75e-07 & 0.000418 & 0.000209 & 0.3378 & +0.00 \\
+EWMA & 1.60e-07 & 0.000400 & 0.000211 & 0.4040 & -19.61 \\
+HistoricalMean & 2.64e-07 & 0.000514 & 0.000271 & 0.5152 & -52.53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% Comprehensive Results Table
+\begin{table*}[!t]
+\centering
+\caption{Comprehensive performance metrics for 30-minute intraday volatility forecasting}
+\label{tab:comprehensive_results}
+\begin{tabular}{@{}lS[table-format=1.2e-1]S[table-format=1.6]S[table-format=1.6]S[table-format=1.4]S[table-format=1.2e-1]S[table-format=1.2e-1]@{}}
+\toprule
+{Model} & {MSE} & {RMSE (Vol)} & {MAE (Vol)} & {QLIKE} & {RMSE (Var)} & {MAE (Var)} \\
+\midrule
+\rowcolor{bestcolor}Naive & 1.75e-07 & 0.000418 & 0.000209 & 0.3378 & 5.48e-06 & 4.85e-07 \\
+HistoricalMean & 2.64e-07 & 0.000514 & 0.000271 & 0.5152 & 4.12e-06 & 4.88e-07 \\
+HAR Intraday & 1.26e-07 & 0.000355 & 0.000169 & 0.2456 & 4.00e-06 & 3.47e-07 \\
+EWMA & 1.60e-07 & 0.000400 & 0.000211 & 0.4040 & 4.04e-06 & 4.10e-07 \\
+LSTM & 1.77e-07 & 0.000421 & 0.000206 & 0.3096 & 4.08e-06 & 4.13e-07 \\
+SpotV2Net & 9.38e-08 & 0.000306 & 0.000138 & 0.1543 & 3.98e-06 & 3.00e-07 \\
+XGBoost & 1.38e-07 & 0.000371 & 0.000184 & 0.2671 & 4.03e-06 & 3.73e-07 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
+% Statistical Significance Table
+\begin{table}[!t]
+\centering
+\caption{Statistical significance of forecast improvements (Diebold-Mariano test)}
+\label{tab:statistical_tests}
+\begin{tabular}{lccccccc}
+\toprule
+Model & Naive & Historical & HAR Intrad & EWMA & LSTM & SpotV2Net & XGBoost \\
+\midrule
+Naive & -- & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** \\
+HistoricalMean & 0.001*** & -- & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** \\
+HAR Intraday & 0.001*** & 0.001*** & -- & 0.001*** & 0.001*** & 0.001*** & 0.001*** \\
+EWMA & 0.001*** & 0.001*** & 0.001*** & -- & 0.001*** & 0.001*** & 0.001*** \\
+LSTM & 0.001*** & 0.001*** & 0.001*** & 0.001*** & -- & 0.001*** & 0.001*** \\
+SpotV2Net & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & -- & 0.001*** \\
+XGBoost & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & -- \\
+\bottomrule
+\multicolumn{8}{l}{\footnotesize Note: *** p<0.001, ** p<0.01, * p<0.05}
+\end{tabular}
+\end{table}
+
+
+\end{document}

@@ -1,0 +1,35 @@
+% IEEE Access Table Format
+\documentclass[journal]{IEEEtran}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{colortbl}
+
+% Define colors for highlighting
+\definecolor{bestcolor}{RGB}{200,255,200}
+\definecolor{secondcolor}{RGB}{220,220,255}
+
+\begin{document}
+\begin{table}[!t]
+\centering
+\caption{Performance comparison of volatility forecasting models on 30-minute intraday data}
+\label{tab:main_results}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & MSE & RMSE & MAE & QLIKE & Improvement (\%) \\
+\midrule
+SpotV2Net & 9.38e-08 & 0.000306 & 0.000138 & 0.1543 & +54.30 \\
+HAR Intraday & 1.26e-07 & 0.000355 & 0.000169 & 0.2456 & +27.30 \\
+XGBoost & 1.38e-07 & 0.000371 & 0.000184 & 0.2671 & +20.91 \\
+LSTM & 1.77e-07 & 0.000421 & 0.000206 & 0.3096 & +8.34 \\
+\rowcolor{bestcolor}Naive & 1.75e-07 & 0.000418 & 0.000209 & 0.3378 & +0.00 \\
+EWMA & 1.60e-07 & 0.000400 & 0.000211 & 0.4040 & -19.61 \\
+HistoricalMean & 2.64e-07 & 0.000514 & 0.000271 & 0.5152 & -52.53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

@@ -1,0 +1,36 @@
+% IEEE Access Table Format
+\documentclass[journal]{IEEEtran}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{colortbl}
+
+% Define colors for highlighting
+\definecolor{bestcolor}{RGB}{200,255,200}
+\definecolor{secondcolor}{RGB}{220,220,255}
+
+\begin{document}
+\begin{table}[!t]
+\centering
+\caption{Statistical significance of forecast improvements (Diebold-Mariano test)}
+\label{tab:statistical_tests}
+\begin{tabular}{lccccccc}
+\toprule
+Model & Naive & Historical & HAR Intrad & EWMA & LSTM & SpotV2Net & XGBoost \\
+\midrule
+Naive & -- & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** \\
+HistoricalMean & 0.001*** & -- & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** \\
+HAR Intraday & 0.001*** & 0.001*** & -- & 0.001*** & 0.001*** & 0.001*** & 0.001*** \\
+EWMA & 0.001*** & 0.001*** & 0.001*** & -- & 0.001*** & 0.001*** & 0.001*** \\
+LSTM & 0.001*** & 0.001*** & 0.001*** & 0.001*** & -- & 0.001*** & 0.001*** \\
+SpotV2Net & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & -- & 0.001*** \\
+XGBoost & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & 0.001*** & -- \\
+\bottomrule
+\multicolumn{8}{l}{\footnotesize Note: *** p<0.001, ** p<0.01, * p<0.05}
+\end{tabular}
+\end{table}
+
+\end{document}

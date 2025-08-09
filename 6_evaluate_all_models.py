@@ -24,6 +24,8 @@ warnings.filterwarnings('ignore')
 from utils.models import GATModel
 from utils.dataset import IntradayVolatilityDataset, IntradayGNNDataset
 from utils.evaluation_intraday import VolatilityEvaluator
+from utils.latex_generator import LaTeXTableGenerator
+from utils.academic_plots import AcademicPlotter
 
 
 class ComprehensiveEvaluator:
@@ -117,11 +119,13 @@ class ComprehensiveEvaluator:
         
         return {
             'model': 'Naive_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
             'rmse': metrics['rmse_vol'],
             'mae': metrics['mae_vol'],
             'qlike': metrics['qlike'],
             'rmse_var': metrics['rmse_var'],
-            'mae_var': metrics['mae_var']
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
         }, y_pred
     
     def evaluate_historical_mean(self):
@@ -168,11 +172,63 @@ class ComprehensiveEvaluator:
         
         return {
             'model': 'HistoricalMean_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
             'rmse': metrics['rmse_vol'],
             'mae': metrics['mae_vol'],
             'qlike': metrics['qlike'],
             'rmse_var': metrics['rmse_var'],
-            'mae_var': metrics['mae_var']
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
+        }, y_pred
+    
+    def evaluate_ewma(self):
+        """EWMA (Exponentially Weighted Moving Average) baseline"""
+        print("\nEvaluating EWMA (30-min)...")
+        
+        all_preds = []
+        all_targets = []
+        
+        # RiskMetrics standard for volatility
+        alpha = 0.94
+        
+        for batch in tqdm(self.test_loader, desc="EWMA evaluation"):
+            features = batch['features']  # [batch, 42, 930]
+            target = batch['target']
+            
+            # Extract volatilities (first 30 features)
+            vols = features[:, :, :30]  # [batch, 42, 30]
+            
+            # EWMA prediction: weighted average with exponential decay
+            batch_size = vols.shape[0]
+            ewma_preds = []
+            
+            for b in range(batch_size):
+                # Initialize with first value
+                ewma = vols[b, 0, :].clone()
+                
+                # Apply EWMA through the sequence
+                for t in range(1, vols.shape[1]):
+                    ewma = alpha * ewma + (1 - alpha) * vols[b, t, :]
+                
+                ewma_preds.append(ewma.numpy())
+            
+            all_preds.extend(ewma_preds)
+            all_targets.append(target.numpy())
+        
+        y_pred = np.vstack(all_preds)
+        y_true = np.vstack(all_targets)
+        
+        metrics = self.evaluator.calculate_all_metrics(y_pred, y_true, is_variance=True)
+        
+        return {
+            'model': 'EWMA_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
+            'rmse': metrics['rmse_vol'],
+            'mae': metrics['mae_vol'],
+            'qlike': metrics['qlike'],
+            'rmse_var': metrics['rmse_var'],
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
         }, y_pred
     
     def evaluate_har_intraday(self):
@@ -218,11 +274,13 @@ class ComprehensiveEvaluator:
         
         return {
             'model': 'HAR_Intraday_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
             'rmse': metrics['rmse_vol'],
             'mae': metrics['mae_vol'],
             'qlike': metrics['qlike'],
             'rmse_var': metrics['rmse_var'],
-            'mae_var': metrics['mae_var']
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
         }, y_pred
     
     def evaluate_lstm(self):
@@ -281,11 +339,97 @@ class ComprehensiveEvaluator:
         
         return {
             'model': 'LSTM_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
             'rmse': metrics['rmse_vol'],
             'mae': metrics['mae_vol'],
             'qlike': metrics['qlike'],
             'rmse_var': metrics['rmse_var'],
-            'mae_var': metrics['mae_var']
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
+        }, y_pred
+    
+    def evaluate_xgboost(self):
+        """Evaluate XGBoost model"""
+        print("\nEvaluating XGBoost (30-min)...")
+        
+        # Check if model exists
+        xgb_dir = f'output/XGBoost_30min_{self.config["seq_length"]}'
+        model_path = os.path.join(xgb_dir, 'xgboost_model.json')
+        
+        if not os.path.exists(model_path):
+            print(f"  ⚠️  XGBoost model not found at {model_path}")
+            return None, None
+        
+        # Load XGBoost model
+        import xgboost as xgb
+        model = xgb.Booster()
+        model.load_model(model_path)
+        
+        # Load test results if available
+        test_results_path = os.path.join(xgb_dir, 'test_results.json')
+        if os.path.exists(test_results_path):
+            with open(test_results_path, 'r') as f:
+                test_results = json.load(f)
+            print(f"  Loaded XGBoost test results")
+            print(f"  Best iteration: {test_results.get('best_iteration', 'N/A')}")
+            print(f"  Test QLIKE: {test_results.get('test_qlike', 'N/A'):.4f}")
+        
+        # Get predictions
+        all_preds = []
+        all_targets = []
+        
+        # For XGBoost, we need to prepare features differently (use same simple features as training)
+        print("  Preparing XGBoost features...")
+        for batch in tqdm(self.test_loader, desc="XGBoost evaluation"):
+            features = batch['features'].numpy()  # [batch, seq_length, 930]
+            target = batch['target'].numpy()
+            
+            batch_size = features.shape[0]
+            for i in range(batch_size):
+                # Use same simple feature extraction as training
+                feat = features[i]  # [42, 930]
+                vols = feat[:, :30]  # Extract volatilities [42, 30]
+                
+                # Simple features (must match training exactly)
+                recent_vols = vols[-3:, :].flatten()  # 90 features
+                vol_mean = vols.mean(axis=0)  # 30 features
+                vol_std = vols.std(axis=0)    # 30 features
+                vol_last = vols[-1, :]        # 30 features
+                vol_trend = vols[-1, :] - vol_mean  # 30 features
+                market_vol = vols.mean(axis=1)  # 42 features
+                
+                # Combine (total: 252 features - same as training)
+                simple_features = np.concatenate([
+                    recent_vols,
+                    vol_mean,
+                    vol_std,
+                    vol_last,
+                    vol_trend,
+                    market_vol
+                ])
+                
+                pred = model.predict(xgb.DMatrix([simple_features]))[0]
+                
+                # XGBoost predicts mean, expand to 30 stocks
+                pred_expanded = np.full(30, pred)
+                
+                all_preds.append(pred_expanded)
+                all_targets.append(target[i])
+        
+        y_pred = np.vstack(all_preds)
+        y_true = np.vstack(all_targets)
+        
+        metrics = self.evaluator.calculate_all_metrics(y_pred, y_true, is_variance=True)
+        
+        return {
+            'model': 'XGBoost_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
+            'rmse': metrics['rmse_vol'],
+            'mae': metrics['mae_vol'],
+            'qlike': metrics['qlike'],
+            'rmse_var': metrics['rmse_var'],
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
         }, y_pred
     
     def evaluate_spotv2net(self):
@@ -374,11 +518,13 @@ class ComprehensiveEvaluator:
         
         return {
             'model': 'SpotV2Net_30min',
+            'mse': metrics['rmse_vol'] ** 2,  # Add MSE
             'rmse': metrics['rmse_vol'],
             'mae': metrics['mae_vol'],
             'qlike': metrics['qlike'],
             'rmse_var': metrics['rmse_var'],
-            'mae_var': metrics['mae_var']
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2  # Add MSE for variance
         }, y_pred
     
     def create_comparison_table(self, metrics_list):
@@ -392,6 +538,10 @@ class ComprehensiveEvaluator:
         display_df = df.copy()
         
         # Format numbers
+        for col in ['mse']:
+            if col in display_df.columns:
+                display_df[col] = display_df[col].apply(lambda x: f"{x:.2e}")
+        
         for col in ['rmse', 'mae']:
             if col in display_df.columns:
                 display_df[col] = display_df[col].apply(lambda x: f"{x:.6f}")
@@ -400,14 +550,30 @@ class ComprehensiveEvaluator:
             if col in display_df.columns:
                 display_df[col] = display_df[col].apply(lambda x: f"{x:.4f}")
         
-        for col in ['rmse_var', 'mae_var']:
+        for col in ['mse_var', 'rmse_var', 'mae_var']:
             if col in display_df.columns:
-                display_df[col] = display_df[col].apply(lambda x: f"{x:.8f}")
+                display_df[col] = display_df[col].apply(lambda x: f"{x:.2e}")
         
         return display_df
     
     def plot_predictions_comparison(self, predictions_dict, n_samples=100, assets=[0, 5, 10, 15, 20]):
-        """Plot predictions for selected assets"""
+        """Plot predictions for selected assets with enhanced visualization"""
+        # Load DOW30 symbols
+        with open('config/dow30_config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        symbols = config['dow30_symbols']
+        
+        # Select specific stocks for plotting
+        selected_stocks = [symbols[i] for i in assets if i < len(symbols)]
+        
+        # Use the new academic plotter with correct output directory
+        plotter = AcademicPlotter(output_dir='paper_assets')
+        
+        # Create enhanced prediction comparison
+        plotter.create_prediction_comparison(predictions_dict, n_samples=n_samples, 
+                                            selected_stocks=selected_stocks)
+        
+        # Also create the original simple plot for backward compatibility
         n_assets = len(assets)
         fig, axes = plt.subplots(n_assets, 1, figsize=(14, 3*n_assets))
         if n_assets == 1:
@@ -415,8 +581,23 @@ class ComprehensiveEvaluator:
         
         colors = ['black', 'blue', 'red', 'green', 'orange', 'purple', 'brown']
         
+        # Time axis for 30-minute intervals
+        time_labels = []
+        for i in range(n_samples):
+            interval_in_day = i % 13
+            day = i // 13
+            hour = 9 + (interval_in_day * 30) // 60
+            minute = (interval_in_day * 30) % 60 + 30
+            if minute >= 60:
+                hour += 1
+                minute -= 60
+            time_labels.append(f"D{day+1} {hour:02d}:{minute:02d}")
+        
         for idx, asset_idx in enumerate(assets):
             ax = axes[idx]
+            
+            # Get stock symbol
+            stock_symbol = symbols[asset_idx] if asset_idx < len(symbols) else f"Asset {asset_idx}"
             
             # Get true values for this asset
             true_values = None
@@ -432,26 +613,38 @@ class ComprehensiveEvaluator:
                             if len(all_targets) * 32 >= n_samples:
                                 break
                         true_values = np.vstack(all_targets)[:n_samples, asset_idx]
-                        ax.plot(true_values, label='Actual', color='black', linewidth=2, alpha=0.8)
+                        ax.plot(range(n_samples), true_values, label='Actual', 
+                               color='black', linewidth=2, alpha=0.8)
                     
                     # Plot predictions
                     model_preds = preds[:n_samples, asset_idx]
                     color_idx = list(predictions_dict.keys()).index(model_name) + 1
-                    ax.plot(model_preds, label=model_name.replace('_30min', ''), 
+                    ax.plot(range(n_samples), model_preds, 
+                           label=model_name.replace('_30min', ''), 
                            alpha=0.7, color=colors[color_idx % len(colors)])
             
-            ax.set_title(f'Asset {asset_idx + 1} - 30-Minute Volatility')
-            ax.set_xlabel('Time (30-min intervals)')
-            ax.set_ylabel('Volatility')
+            ax.set_title(f'{stock_symbol} - 30-Minute Volatility')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Standardized Log Volatility')
             ax.legend(loc='upper right', fontsize=8)
             ax.grid(True, alpha=0.3)
+            
+            # Set x-axis labels (show every 10th label to avoid crowding)
+            if n_samples <= 50:
+                ax.set_xticks(range(0, n_samples, 5))
+                ax.set_xticklabels([time_labels[i] for i in range(0, n_samples, 5)], 
+                                   rotation=45, ha='right', fontsize=7)
+            else:
+                ax.set_xticks(range(0, n_samples, 10))
+                ax.set_xticklabels([time_labels[i] for i in range(0, n_samples, 10)], 
+                                   rotation=45, ha='right', fontsize=7)
         
         plt.suptitle('30-Minute Intraday Volatility Predictions', fontsize=14)
         plt.tight_layout()
         plt.savefig('intraday_predictions_30min.png', dpi=120, bbox_inches='tight')
         plt.close()
         
-        print("✅ Saved prediction plots to intraday_predictions_30min.png")
+        print("✅ Saved enhanced prediction plots")
     
     def run_evaluation(self):
         """Run complete evaluation"""
@@ -466,8 +659,10 @@ class ComprehensiveEvaluator:
         print("\nChecking available models:")
         lstm_available = os.path.exists(f'output/LSTM_30min_{self.config["seq_length"]}/best_model.pt')
         gnn_available = os.path.exists(f'output/{self.config["modelname"]}_30min_{self.config["seq_length"]}/best_model.pt')
+        xgb_available = os.path.exists(f'output/XGBoost_30min_{self.config["seq_length"]}/xgboost_model.json')
         print(f"  LSTM: {'✓ Available' if lstm_available else '✗ Not found'}")
         print(f"  SpotV2Net: {'✓ Available' if gnn_available else '✗ Not found'}")
+        print(f"  XGBoost: {'✓ Available' if xgb_available else '✗ Not found'}")
         print("="*80)
         
         all_metrics = []
@@ -489,6 +684,11 @@ class ComprehensiveEvaluator:
             all_metrics.append(har_metrics)
             predictions['HAR'] = (har_metrics, har_pred)
         
+        ewma_metrics, ewma_pred = self.evaluate_ewma()
+        if ewma_metrics:
+            all_metrics.append(ewma_metrics)
+            predictions['EWMA'] = (ewma_metrics, ewma_pred)
+        
         # Evaluate neural networks
         lstm_metrics, lstm_pred = self.evaluate_lstm()
         if lstm_metrics:
@@ -499,6 +699,12 @@ class ComprehensiveEvaluator:
         if gnn_metrics:
             all_metrics.append(gnn_metrics)
             predictions['SpotV2Net'] = (gnn_metrics, gnn_pred)
+        
+        # Evaluate XGBoost
+        xgb_metrics, xgb_pred = self.evaluate_xgboost()
+        if xgb_metrics:
+            all_metrics.append(xgb_metrics)
+            predictions['XGBoost'] = (xgb_metrics, xgb_pred)
         
         # Create comparison table
         print("\n" + "="*80)
@@ -551,6 +757,43 @@ class ComprehensiveEvaluator:
             json.dump(results, f, indent=2, default=str)
         
         print(f"\n✅ Results saved to: {output_file}")
+        
+        # Generate LaTeX tables for paper
+        print("\n📝 Generating LaTeX tables for IEEE Access paper...")
+        try:
+            latex_gen = LaTeXTableGenerator(output_dir='paper_assets')
+            latex_files = latex_gen.save_all_tables(all_metrics, timestamp=timestamp)
+            print("✅ LaTeX tables generated successfully!")
+            
+            # Also save a CSV for easy Excel import
+            csv_file = f"evaluation_results_30min_{timestamp}.csv"
+            results_df = pd.DataFrame(all_metrics)
+            results_df.to_csv(csv_file, index=False)
+            print(f"✅ CSV saved to: {csv_file}")
+            
+            # Generate comprehensive academic plots
+            print("\n🎨 Generating academic visualizations...")
+            try:
+                metrics_df = pd.DataFrame(all_metrics)
+                plotter = AcademicPlotter(output_dir='paper_assets')
+                
+                # Create model comparison plots
+                plotter.create_model_comparison_plots(metrics_df)
+                
+                # Create performance by time of day analysis
+                plotter.create_performance_by_time_of_day(predictions)
+                
+                # Create correlation analysis
+                plotter.create_correlation_analysis(predictions)
+                
+                # Create volatility clustering visualization
+                plotter.create_volatility_clustering_plot()
+                
+                print("✅ Academic visualizations generated successfully!")
+            except Exception as e:
+                print(f"⚠️  Error generating academic plots: {e}")
+        except Exception as e:
+            print(f"⚠️  Error generating LaTeX tables: {e}")
         
         print("\n" + "="*80)
         print("EVALUATION COMPLETE")

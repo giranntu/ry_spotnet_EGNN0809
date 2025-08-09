@@ -1,4 +1,6 @@
-# SpotV2Net
+# SpotV2Net - 30-Minute Intraday Volatility Prediction
+
+Graph Neural Network (GNN) and LSTM models for high-frequency volatility forecasting on DOW30 stocks using Yang-Zhang estimator.
 
 This repository supports the paper titled **"SpotV2Net: Multivariate Intraday Spot Volatility Forecasting via Vol-of-Vol-Informed Graph Attention Networks"**, authored by **Alessio Brini** and **Giacomo Toscano**. 
 
