@@ -61,7 +61,6 @@ venv.bak/
 
 # Results and evaluation files
 evaluation_results_*.json
-*.png
 
 # Temporary files
 *.tmp
