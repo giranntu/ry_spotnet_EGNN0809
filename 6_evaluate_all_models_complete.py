@@ -186,6 +186,58 @@ class ComprehensiveEvaluator:
             'mse_var': metrics['rmse_var'] ** 2
         }, y_pred
     
+    def evaluate_har_intraday(self):
+        """HAR model adapted for 30-minute intervals"""
+        print("\nEvaluating HAR-Intraday (30-min)...")
+        
+        all_preds = []
+        all_targets = []
+        
+        for batch in tqdm(self.test_loader, desc="HAR evaluation"):
+            features = batch['features']  # [batch, 42, 930]
+            target = batch['target']
+            
+            # HAR components for intraday:
+            # - Last interval (30 min)
+            # - Last 13 intervals (1 day)
+            # - Last 42 intervals (≈3 days)
+            
+            # Extract volatilities (first 30 features)
+            vols = features[:, :, :30]  # [batch, 42, 30]
+            
+            # Component 1: Last interval
+            comp1 = vols[:, -1, :]
+            
+            # Component 2: Average of last day (13 intervals)
+            comp2 = torch.mean(vols[:, -13:, :], dim=1)
+            
+            # Component 3: Average of all history (42 intervals)
+            comp3 = torch.mean(vols, dim=1)
+            
+            # HAR prediction: weighted average
+            # Traditional HAR weights: 1/3 each, but we can adjust for intraday
+            w1, w2, w3 = 0.5, 0.3, 0.2  # More weight on recent
+            y_pred = w1 * comp1 + w2 * comp2 + w3 * comp3
+            
+            all_preds.append(y_pred.numpy())
+            all_targets.append(target.numpy())
+        
+        y_pred = np.vstack(all_preds)
+        y_true = np.vstack(all_targets)
+        
+        metrics = self.evaluator.calculate_all_metrics(y_pred, y_true, is_variance=True)
+        
+        return {
+            'model': 'HAR_Intraday_30min',
+            'mse': metrics['rmse_vol'] ** 2,
+            'rmse': metrics['rmse_vol'],
+            'mae': metrics['mae_vol'],
+            'qlike': metrics['qlike'],
+            'rmse_var': metrics['rmse_var'],
+            'mae_var': metrics['mae_var'],
+            'mse_var': metrics['rmse_var'] ** 2
+        }, y_pred
+    
     def evaluate_ewma(self):
         """EWMA (Exponentially Weighted Moving Average) baseline"""
         print("\nEvaluating EWMA (30-min)...")
@@ -846,6 +898,11 @@ class ComprehensiveEvaluator:
         if ewma_metrics:
             all_metrics.append(ewma_metrics)
             predictions['EWMA'] = (ewma_metrics, ewma_pred)
+        
+        har_metrics, har_pred = self.evaluate_har_intraday()
+        if har_metrics:
+            all_metrics.append(har_metrics)
+            predictions['HAR'] = (har_metrics, har_pred)
         
         # Evaluate neural networks
         lstm_metrics, lstm_pred = self.evaluate_lstm()
