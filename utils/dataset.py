@@ -434,14 +434,43 @@ class IntradayGNNDataset(InMemoryDataset):
         """
         Compute edge features from node features
         
-        Can include covariances between nodes
+        Uses actual covariances between nodes from the data
         """
-        # Placeholder - implement based on paper's specifics
         n_nodes = 30  # DJIA stocks
-        n_edges = n_nodes * (n_nodes - 1)
         
-        # For now, return dummy edge features
-        return torch.zeros((n_edges, 3), dtype=torch.float32)
+        # Extract covariances from the last timestep for edge features
+        # features shape: [seq_length, 930] where 930 = 30 vols + 435 covols + 30 volvols + 435 covolvols
+        
+        # Get the covariances from the last timestep
+        last_timestep = features[-1]  # Most recent data
+        
+        # Covariances are at positions 30 to 30+435
+        covol_start = 30
+        covol_end = 30 + 435
+        covariances = last_timestep[covol_start:covol_end]
+        
+        # Create edge features for each directed edge
+        edge_features = []
+        cov_idx = 0
+        for i in range(n_nodes):
+            for j in range(n_nodes):
+                if i != j:
+                    if i < j:
+                        # Use upper triangle covariance
+                        cov_value = covariances[cov_idx] if cov_idx < len(covariances) else 0.0
+                        if j == i + 1:
+                            cov_idx += 1
+                    else:
+                        # For lower triangle, use same covariance (symmetric)
+                        # Find the corresponding upper triangle index
+                        upper_idx = (j * (2 * n_nodes - j - 1)) // 2 + (i - j - 1)
+                        cov_value = covariances[upper_idx] if upper_idx < len(covariances) else 0.0
+                    
+                    # Create edge features: [covariance, abs(covariance), sign(covariance)]
+                    edge_feat = [cov_value, abs(cov_value), np.sign(cov_value)]
+                    edge_features.append(edge_feat)
+        
+        return torch.tensor(edge_features, dtype=torch.float32)
 
 
 def verify_intraday_alignment():

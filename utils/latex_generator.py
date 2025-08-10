@@ -145,7 +145,7 @@ class LaTeXTableGenerator:
         latex_code += header + r" \\" + "\n"
         latex_code += r"\midrule" + "\n"
         
-        # Add comparison results (placeholder for DM test results)
+        # Add comparison results (actual DM test not yet implemented)
         for i, model1 in enumerate(models):
             model1_short = model1.replace('_30min', '').replace('_', ' ')
             row = model1_short
@@ -153,8 +153,8 @@ class LaTeXTableGenerator:
                 if i == j:
                     row += " & --"
                 else:
-                    # Placeholder for DM test p-values
-                    row += " & 0.001***"  # Example
+                    # DM test not yet implemented - showing as pending
+                    row += " & TBD"  # To be calculated with actual DM test
             latex_code += row + r" \\" + "\n"
         
         latex_code += r"\bottomrule" + "\n"
@@ -341,7 +341,8 @@ def generate_paper_assets(evaluation_results_file: str = None):
 
 
 if __name__ == "__main__":
-    # Test with dummy data
+    # TEST ONLY - This dummy data is ONLY for testing the LaTeX table generation
+    # NEVER use this for actual results
     test_metrics = [
         {'model': 'SpotV2Net_30min', 'mse': 9.37e-08, 'rmse': 0.000306, 'mae': 0.000138, 'qlike': 0.1543},
         {'model': 'XGBoost_30min', 'mse': 1.38e-07, 'rmse': 0.000371, 'mae': 0.000184, 'qlike': 0.2671},

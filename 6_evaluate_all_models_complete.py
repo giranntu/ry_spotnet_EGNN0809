@@ -965,6 +965,44 @@ class ComprehensiveEvaluator:
         # Plot predictions
         if len(predictions) > 0:
             self.plot_predictions_comparison(predictions)
+            
+            # Generate academic publication plots
+            print("\n📊 Generating academic publication plots...")
+            plotter = AcademicPlotter(output_dir='paper_assets')
+            
+            # Create prediction comparison with enhanced visualization
+            plotter.create_prediction_comparison(
+                predictions_dict=predictions,
+                n_samples=200,
+                selected_stocks=['AAPL', 'MSFT', 'JPM', 'CVX', 'WMT']
+            )
+            
+            # Collect true values for accurate per-interval analysis
+            print("   Collecting true values from test set...")
+            all_true_values = []
+            for batch in self.test_loader:
+                all_true_values.append(batch['target'].numpy())
+            true_values = np.vstack(all_true_values)
+            print(f"   Collected {len(true_values)} true values for per-interval analysis")
+            
+            # Create performance by time of day analysis with REAL per-interval metrics
+            plotter.create_performance_by_time_of_day(predictions, true_values=true_values)
+            
+            # Create comprehensive model comparison plots
+            comparison_df = self.create_comparison_table(all_metrics)
+            plotter.create_model_comparison_plots(comparison_df)
+            
+            # Create correlation analysis plots
+            plotter.create_correlation_analysis(predictions)
+            
+            # Create volatility clustering visualization
+            plotter.create_volatility_clustering_plot()
+            
+            print("✅ Academic plots generated successfully!")
+            print("📁 Saved to:")
+            print("   - paper_assets/figures/dissertation/")
+            print("   - paper_assets/figures/paper/")
+            print("   - paper_assets/figures/presentation/")
         
         # Save results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -989,6 +1027,20 @@ class ComprehensiveEvaluator:
         results_df = pd.DataFrame(all_metrics)
         results_df.to_csv(csv_file, index=False)
         print(f"✅ CSV saved to: {csv_file}")
+        
+        # Generate LaTeX tables for academic paper
+        print("\n📄 Generating LaTeX tables...")
+        latex_gen = LaTeXTableGenerator(output_dir='paper_assets')
+        
+        # Ensure HAR is included in the metrics for LaTeX tables
+        har_in_metrics = any('HAR' in m.get('model', '') for m in all_metrics)
+        if har_in_metrics:
+            print("   ✓ HAR baseline included in LaTeX tables")
+        else:
+            print("   ⚠️ Warning: HAR not found in metrics for LaTeX tables")
+        
+        latex_tables = latex_gen.save_all_tables(all_metrics, timestamp=timestamp)
+        print("   ✓ LaTeX tables generated with HAR baseline included")
         
         print("\n" + "="*80)
         print("EVALUATION COMPLETE - ALL MODELS INCLUDED")
