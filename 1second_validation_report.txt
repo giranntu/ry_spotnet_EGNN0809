@@ -1,0 +1,86 @@
+================================================================================
+1-SECOND DATA VALIDATION REPORT
+================================================================================
+File: rawdata/by_comp_1second/AAPL_201901_202507_1second.csv.gz
+
+Loading data...
+📊 BASIC STATISTICS:
+  Total records: 46,800
+  Date range: 2025-07-29 09:30:00 to 2025-07-30 15:59:59
+  Unique dates: 2
+  Memory usage: 4.51 MB
+  Trading days: 2025-07-29, 2025-07-30
+
+================================================================================
+📅 PER-DAY ANALYSIS:
+================================================================================
+
+📆 Date: 2025-07-29
+----------------------------------------
+  Expected time range: 2025-07-29 09:30:00 to 2025-07-29 15:59:59
+  Actual time range:   2025-07-29 09:30:00 to 2025-07-29 15:59:59
+  Expected records: 23,400
+  Actual records:   23,400
+  ✅ Record count matches exactly!
+  ✅ No missing timestamps!
+
+  📈 DATA QUALITY:
+    ⚠️ NaN values in columns: ['time_diff']
+      time_diff: 1 NaN values
+    ✅ OHLC values are consistent
+    ℹ️ Zero volume: 4672 records (20.0%)
+
+  💰 PRICE STATISTICS:
+    Open:  Min=211.03, Max=214.80, Mean=212.29
+    High:  Min=211.07, Max=214.81, Mean=212.30
+    Low:   Min=210.82, Max=214.78, Mean=212.29
+    Close: Min=211.05, Max=214.80, Mean=212.29
+    Volume: Total=36,119,884, Mean=1,544
+
+📆 Date: 2025-07-30
+----------------------------------------
+  Expected time range: 2025-07-30 09:30:00 to 2025-07-30 15:59:59
+  Actual time range:   2025-07-30 09:30:00 to 2025-07-30 15:59:59
+  Expected records: 23,400
+  Actual records:   23,400
+  ✅ Record count matches exactly!
+  ✅ No missing timestamps!
+
+  📈 DATA QUALITY:
+    ⚠️ NaN values in columns: ['time_diff']
+      time_diff: 1 NaN values
+    ✅ OHLC values are consistent
+    ℹ️ Zero volume: 3942 records (16.8%)
+
+  💰 PRICE STATISTICS:
+    Open:  Min=207.73, Max=212.35, Mean=209.80
+    High:  Min=207.75, Max=212.39, Mean=209.81
+    Low:   Min=207.72, Max=212.34, Mean=209.80
+    Close: Min=207.72, Max=212.37, Mean=209.80
+    Volume: Total=28,895,208, Mean=1,235
+
+================================================================================
+📋 OVERALL SUMMARY:
+================================================================================
+
+⚠️ ISSUES FOUND (2 total):
+  - 2025-07-29: NaN values in ['time_diff']
+  - 2025-07-30: NaN values in ['time_diff']
+
+📊 AGGREGATE STATISTICS:
+  Total records: 46,800
+  Expected total: 46,800
+  Completeness: 100.00%
+
+⏱️ TIME SPACING DISTRIBUTION:
+  1 second(s): 46,798 occurrences (100.0%)
+  63001 second(s): 1 occurrences (0.0%)
+
+🔄 TIME ORDERING:
+  ✅ Data is properly sorted by time
+
+================================================================================
+🏁 FINAL VERDICT:
+================================================================================
+⚠️ DATA HAS 2 ISSUES THAT MAY NEED ATTENTION
+Review the issues above to determine if they impact your analysis.

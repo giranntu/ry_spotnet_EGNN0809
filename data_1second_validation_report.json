@@ -1,0 +1,106 @@
+{
+  "timestamp": "2025-08-10T16:31:13.876456",
+  "target_period": "2019-01-01 to 2025-07-30",
+  "resolution": "1-second",
+  "expected_bars_per_day": 23400,
+  "symbols": {
+    "AAPL": {
+      "exists": true,
+      "size_mb": 0.4
+    },
+    "AMGN": {
+      "exists": false
+    },
+    "AMZN": {
+      "exists": false
+    },
+    "AXP": {
+      "exists": false
+    },
+    "BA": {
+      "exists": false
+    },
+    "CAT": {
+      "exists": false
+    },
+    "CRM": {
+      "exists": false
+    },
+    "CSCO": {
+      "exists": false
+    },
+    "CVX": {
+      "exists": false
+    },
+    "DIS": {
+      "exists": false
+    },
+    "GS": {
+      "exists": false
+    },
+    "HD": {
+      "exists": false
+    },
+    "HON": {
+      "exists": false
+    },
+    "IBM": {
+      "exists": false
+    },
+    "INTC": {
+      "exists": false
+    },
+    "JNJ": {
+      "exists": false
+    },
+    "JPM": {
+      "exists": false
+    },
+    "KO": {
+      "exists": false
+    },
+    "MCD": {
+      "exists": false
+    },
+    "MMM": {
+      "exists": false
+    },
+    "MRK": {
+      "exists": false
+    },
+    "MSFT": {
+      "exists": false
+    },
+    "NKE": {
+      "exists": false
+    },
+    "PG": {
+      "exists": false
+    },
+    "TRV": {
+      "exists": false
+    },
+    "UNH": {
+      "exists": false
+    },
+    "V": {
+      "exists": false
+    },
+    "VZ": {
+      "exists": false
+    },
+    "WBA": {
+      "exists": false
+    },
+    "WMT": {
+      "exists": false
+    }
+  },
+  "summary": {
+    "total_symbols": 30,
+    "successfully_downloaded": 1,
+    "has_issues": 0,
+    "missing": 29,
+    "total_size_gb": 0.0
+  }
+}

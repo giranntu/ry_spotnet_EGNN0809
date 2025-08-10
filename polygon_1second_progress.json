@@ -1,0 +1,29 @@
+{
+  "completed": {
+    "AAPL": {
+      "records": 46800,
+      "trading_days": 2,
+      "size_mb": 0.38,
+      "date_range": "2025-07-29 to 2025-07-30",
+      "stats": {
+        "successful_days": 2,
+        "empty_days": 0,
+        "total_records": 46800,
+        "date_range": "2019-01-01 to 2025-07-30"
+      },
+      "validation": {
+        "date_range_check": true,
+        "bar_count_check": true,
+        "data_quality_check": true,
+        "issues": []
+      },
+      "resolution": "1-second",
+      "bars_per_day": 23400,
+      "completed_at": "2025-08-10T16:31:13.875810"
+    }
+  },
+  "failed": {},
+  "validation": {},
+  "started_at": "2025-08-10T16:30:40.685781",
+  "last_update": "2025-08-10T16:31:13.875935"
+}
