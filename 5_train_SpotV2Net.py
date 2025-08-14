@@ -30,9 +30,11 @@ class SpotV2NetTrainer:
         # Update config for 30-minute data
         self.config['seq_length'] = 42  # 42 thirty-minute intervals
         
-        # Update file paths to use 30-minute data
+        # Update file paths to use 30-minute standardized data (all 4 features)
         self.config['volfile'] = 'processed_data/vols_mats_30min_standardized.h5'
+        self.config['covolfile'] = 'processed_data/covol_mats_30min_standardized.h5'  # 🔧 ADDED
         self.config['volvolfile'] = 'processed_data/volvols_mats_30min_standardized.h5'
+        self.config['covolvolfile'] = 'processed_data/covolvols_mats_30min_standardized.h5'  # 🔧 ADDED
         
         # Setup paths
         self.model_name = self.config['modelname'] + '_30min'
@@ -80,9 +82,13 @@ class SpotV2NetTrainer:
         
         self.num_workers = min(4, os.cpu_count() or 1)
         
-        # Check if files exist
-        if not os.path.exists(self.config['volfile']):
-            raise FileNotFoundError(f"30-minute data not found: {self.config['volfile']}\nPlease run scripts 2 and 4 first!")
+        # Check if all required files exist
+        required_files = [self.config['volfile'], self.config['volvolfile']]
+        # Note: CoVol files are optional for backward compatibility
+        
+        for file in required_files:
+            if not os.path.exists(file):
+                raise FileNotFoundError(f"30-minute standardized data not found: {file}\nPlease run scripts 2 and 4 first!")
         
         # Create GNN datasets with proper temporal splits
         # CRITICAL: Each dataset is created separately to prevent data leakage

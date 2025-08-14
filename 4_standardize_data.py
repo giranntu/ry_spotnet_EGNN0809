@@ -382,20 +382,21 @@ def main():
     print(f"\nUsing standardization method: {method}")
     print("This preserves the positive nature of volatility while normalizing for neural networks")
     
-    # Standardize 30-minute volatility matrices
+    # Standardize all four SpotV2Net features
     standardize_matrices('vols', method=method, suffix='30min')
-    
-    # Standardize 30-minute volatility-of-volatility matrices
+    standardize_matrices('covol', method=method, suffix='30min')  # 🔧 ADDED
     standardize_matrices('volvols', method=method, suffix='30min')
+    standardize_matrices('covolvols', method=method, suffix='30min')  # 🔧 ADDED
     
     print("\n" + "="*80)
     print("✅ ALL STANDARDIZATION COMPLETE")
     print("="*80)
     print("\nKey features:")
-    print("1. Volatilities remain interpretable (log-space for neural networks)")
-    print("2. No artificial negative volatilities")
-    print("3. Proper train/val/test splits maintained")
-    print("4. Covariances properly normalized")
+    print("1. All four SpotV2Net features standardized (Vol, CoVol, VolVol, CoVolVol)")
+    print("2. Volatilities remain interpretable (log-space for neural networks)")
+    print("3. No artificial negative volatilities")
+    print("4. Proper train/val/test splits maintained")
+    print("5. Covariances properly normalized")
     print("\nThe data is now ready for model training with physically meaningful values!")
 
 
