@@ -39,15 +39,17 @@ plt.rcParams['savefig.dpi'] = 300
 plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans']
 
-# Professional color palette - INCLUDING HAR
+# Professional color palette - PNA AS PROPOSED MODEL
 COLORS = {
     'actual': '#2C3E50',          # Dark blue-gray
-    'pna': '#FF6B35',             # Vibrant orange (WINNER)
+    'pna': '#FF6B35',             # Vibrant orange (PROPOSED MODEL)
     'pna_30min': '#FF6B35',       # Same for variations
-    'transformergnn': '#3498DB',   # Blue
-    'transformergnn_30min': '#3498DB',
+    'pna_stable': '#FF6B35',      # PNA stable version
+    'pna_stable_30min': '#FF6B35', # PNA stable 30min
+    # TransformerGNN REMOVED - not included in paper
     'spotv2net': '#E74C3C',       # Red
     'spotv2net_30min': '#E74C3C',
+    'spotv2net_gat': '#E74C3C',   # SpotV2Net GAT variation
     'lstm': '#2ECC71',            # Green
     'lstm_30min': '#2ECC71',
     'har': '#8E44AD',             # Purple (Important baseline)
@@ -234,8 +236,12 @@ class AcademicPlotter:
             # We need to get actual true values - they should be the same for all models
             true_values = None
             
-            # Plot each model's ACTUAL predictions
+            # Plot each model's ACTUAL predictions (EXCLUDE TransformerGNN)
             for model_name, (metrics, preds) in predictions_dict.items():
+                # SKIP TransformerGNN - removed from paper
+                if 'TransformerGNN' in model_name or 'transformer' in model_name.lower():
+                    continue
+                    
                 if preds is not None and len(preds) > 0 and preds.shape[0] >= n_samples:
                     # Extract true values once (should be same for all models)
                     if true_values is None and 'Naive' in model_name:
@@ -248,21 +254,21 @@ class AcademicPlotter:
                     model_preds = preds[:n_samples, stock_idx]
                     
                     # Get color for this model
-                    model_key = model_name.lower().replace('_30min', '').replace('_intraday', '')
+                    model_key = model_name.lower().replace('_30min', '').replace('_intraday', '').replace('_stable', '')
                     color = COLORS.get(model_key, '#34495E')
                     
                     # Format label
-                    label = model_name.replace('_30min', '').replace('_Intraday', '').replace('_', ' ')
+                    label = model_name.replace('_30min', '').replace('_Intraday', '').replace('_Stable', '').replace('_', ' ')
                     
-                    # Highlight best models and HAR
+                    # Highlight PNA as PROPOSED MODEL and HAR as baseline
                     if 'HAR' in model_name:
                         ax_main.plot(time_points[:len(model_preds)], model_preds, 
                                    label=f'{label} (Baseline)', color=color, 
                                    linewidth=2.0, alpha=0.8, linestyle='--')
                     elif 'PNA' in model_name:
                         ax_main.plot(time_points[:len(model_preds)], model_preds, 
-                                   label=f'{label} (Best)', color=color, 
-                                   linewidth=2.5, alpha=0.9)
+                                   label=f'{label} (PROPOSED)', color=color, 
+                                   linewidth=3.0, alpha=1.0, zorder=10)  # Highest priority
                     else:
                         ax_main.plot(time_points[:len(model_preds)], model_preds, 
                                    label=label, color=color, 
@@ -363,9 +369,13 @@ class AcademicPlotter:
             return None
         
         for model_name, (metrics, preds) in predictions_dict.items():
+            # SKIP TransformerGNN - removed from paper
+            if 'TransformerGNN' in model_name or 'transformer' in model_name.lower():
+                continue
+                
             if preds is not None and len(preds) > 0:
                 # Clean model name
-                model_key = model_name.replace('_30min', '').replace('_Intraday', '')
+                model_key = model_name.replace('_30min', '').replace('_Intraday', '').replace('_Stable', '')
                 
                 if can_calculate_real_metrics and len(true_values) == len(preds):
                     # AUTHENTIC per-interval QLIKE calculation
@@ -420,10 +430,13 @@ class AcademicPlotter:
             model_key = model.lower()
             color = COLORS.get(model_key, '#34495E')
             
-            # Highlight HAR specially
+            # Highlight PNA (PROPOSED) and HAR (BASELINE) specially
             if 'HAR' in model:
                 ax.bar(x + offset, values, width, label=f'{model} (Baseline)', 
                       color=color, alpha=0.9, edgecolor='black', linewidth=1.5)
+            elif 'PNA' in model:
+                ax.bar(x + offset, values, width, label=f'{model} (PROPOSED)', 
+                      color=color, alpha=1.0, edgecolor='red', linewidth=2.0, zorder=10)
             else:
                 ax.bar(x + offset, values, width, label=model, color=color, alpha=0.8)
         
@@ -573,7 +586,11 @@ class AcademicPlotter:
     def create_model_comparison_plots(self, metrics_df):
         """
         Create comprehensive model comparison visualizations using REAL metrics
+        EXCLUDES TransformerGNN, HIGHLIGHTS PNA as proposed model
         """
+        # Filter out TransformerGNN from the dataframe
+        metrics_df = metrics_df[~metrics_df['model'].str.contains('TransformerGNN', case=False, na=False)].copy()
+        
         fig = plt.figure(figsize=(16, 10))
         gs = GridSpec(3, 3, hspace=0.3, wspace=0.3)
         
@@ -604,8 +621,8 @@ class AcademicPlotter:
                 
                 ax1.bar(x + offset, values, width, label=label, alpha=0.8)
         
-        # Clean model names and highlight HAR
-        model_names = [m.replace('_30min', '').replace('_Intraday', '') 
+        # Clean model names and highlight HAR and PNA
+        model_names = [m.replace('_30min', '').replace('_Intraday', '').replace('_Stable', '') 
                       for m in metrics_df['model']]
         
         ax1.set_xlabel('Model')
@@ -614,11 +631,15 @@ class AcademicPlotter:
         ax1.set_xticks(x)
         ax1.set_xticklabels(model_names, rotation=45, ha='right')
         
-        # Highlight HAR in x-labels
+        # Highlight PNA (PROPOSED) and HAR (BASELINE) in x-labels
         for i, label in enumerate(ax1.get_xticklabels()):
             if 'HAR' in label.get_text():
                 label.set_weight('bold')
                 label.set_color(COLORS['har'])
+            elif 'PNA' in label.get_text():
+                label.set_weight('bold')
+                label.set_color(COLORS['pna'])
+                label.set_fontsize(12)  # Larger font for proposed model
         
         ax1.legend(ncol=4, loc='upper right')
         ax1.grid(True, alpha=0.3, axis='y')
@@ -627,22 +648,43 @@ class AcademicPlotter:
         ax2 = fig.add_subplot(gs[1, 0])
         
         for idx, row in metrics_df.iterrows():
-            model_key = row['model'].replace('_30min', '').replace('_Intraday', '').lower()
+            model_key = row['model'].replace('_30min', '').replace('_Intraday', '').replace('_Stable', '').lower()
             color = COLORS.get(model_key, '#34495E')
             
-            label = row['model'].replace('_30min', '').replace('_Intraday', '')
-            marker = 'D' if 'HAR' in row['model'] else 'o'  # Diamond for HAR
+            label = row['model'].replace('_30min', '').replace('_Intraday', '').replace('_Stable', '')
+            
+            # Special markers for PNA (PROPOSED) and HAR (BASELINE)
+            if 'PNA' in row['model']:
+                marker = '*'  # Star for proposed model
+                size = 200
+                edge_color = 'red'
+                edge_width = 3
+                alpha = 1.0
+                zorder = 10
+            elif 'HAR' in row['model']:
+                marker = 'D'  # Diamond for baseline
+                size = 150
+                edge_color = 'black'
+                edge_width = 2
+                alpha = 0.8
+                zorder = 5
+            else:
+                marker = 'o'  # Circle for others
+                size = 100
+                edge_color = 'none'
+                edge_width = 0
+                alpha = 0.7
+                zorder = 1
             
             # Convert to float if string
             rmse_val = float(row['rmse']) if isinstance(row['rmse'], str) else row['rmse']
             qlike_val = float(row['qlike']) if isinstance(row['qlike'], str) else row['qlike']
             
             ax2.scatter(rmse_val*1000, qlike_val, 
-                       s=150 if 'HAR' in row['model'] else 100, 
-                       color=color, alpha=0.7, 
+                       s=size, color=color, alpha=alpha, 
                        label=label, marker=marker,
-                       edgecolors='black' if 'HAR' in row['model'] else 'none',
-                       linewidth=2 if 'HAR' in row['model'] else 0)
+                       edgecolors=edge_color, linewidth=edge_width,
+                       zorder=zorder)
         
         ax2.set_xlabel('RMSE (×10⁻³)')
         ax2.set_ylabel('QLIKE')
@@ -667,9 +709,13 @@ class AcademicPlotter:
             colors_list = [COLORS.get(m.lower(), '#34495E') for m in models]
             bars = ax3.barh(models, improvements, color=colors_list, alpha=0.8)
             
-            # Highlight HAR and negative improvements
+            # Highlight PNA (PROPOSED), HAR (BASELINE), and negative improvements
             for i, (bar, imp, model) in enumerate(zip(bars, improvements, models)):
-                if 'HAR' in model:
+                if 'PNA' in model:
+                    bar.set_edgecolor('red')
+                    bar.set_linewidth(3)
+                    bar.set_alpha(1.0)
+                elif 'HAR' in model:
                     bar.set_edgecolor('black')
                     bar.set_linewidth(2)
                 if imp < 0:
@@ -692,9 +738,14 @@ class AcademicPlotter:
         colors_list = [COLORS.get(m.lower(), '#34495E') for m in models]
         bars = ax4.bar(range(len(models)), qlike_values, color=colors_list, alpha=0.8)
         
-        # Highlight HAR
+        # Highlight PNA (PROPOSED) and HAR (BASELINE)
         for i, model in enumerate(models):
-            if 'HAR' in model:
+            if 'PNA' in model:
+                bars[i].set_edgecolor('red')
+                bars[i].set_linewidth(3)
+                bars[i].set_alpha(1.0)
+                bars[i].set_zorder(10)
+            elif 'HAR' in model:
                 bars[i].set_edgecolor('black')
                 bars[i].set_linewidth(2)
         
@@ -743,12 +794,30 @@ class AcademicPlotter:
             color = COLORS.get(model_key, '#34495E')
             label = row['model'].replace('_30min', '').replace('_Intraday', '')
             
-            linewidth = 2.5 if 'HAR' in row['model'] else 2
-            linestyle = '--' if 'HAR' in row['model'] else '-'
+            # Special styling for PNA (PROPOSED) and HAR (BASELINE)
+            if 'PNA' in row['model']:
+                linewidth = 3.5
+                linestyle = '-'
+                alpha = 1.0
+                fill_alpha = 0.4
+                zorder = 10
+            elif 'HAR' in row['model']:
+                linewidth = 2.5
+                linestyle = '--'
+                alpha = 0.8
+                fill_alpha = 0.25
+                zorder = 5
+            else:
+                linewidth = 2
+                linestyle = '-'
+                alpha = 0.7
+                fill_alpha = 0.15
+                zorder = 1
             
             ax5.plot(angles, values, 'o-', linewidth=linewidth, 
-                    label=label, color=color, alpha=0.7, linestyle=linestyle)
-            ax5.fill(angles, values, alpha=0.25, color=color)
+                    label=label, color=color, alpha=alpha, linestyle=linestyle,
+                    zorder=zorder)
+            ax5.fill(angles, values, alpha=fill_alpha, color=color, zorder=zorder-1)
         
         ax5.set_xticks(angles[:-1])
         ax5.set_xticklabels(metrics_radar)
@@ -757,7 +826,7 @@ class AcademicPlotter:
         ax5.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
         ax5.grid(True)
         
-        plt.suptitle('Model Performance Comparison - REAL Evaluation Results', 
+        plt.suptitle('Model Performance Comparison - REAL Evaluation Results\n(PNA = PROPOSED MODEL)', 
                     fontsize=14, fontweight='bold')
         
         # Save
@@ -778,17 +847,21 @@ class AcademicPlotter:
         fig, axes = plt.subplots(2, 3, figsize=(15, 10))
         axes = axes.flatten()
         
-        # Use actual models from predictions
+        # Use actual models from predictions (EXCLUDE TransformerGNN)
         plot_idx = 0
         for model_name, (metrics, preds) in predictions_dict.items():
             if plot_idx >= 6:
                 break
             
+            # SKIP TransformerGNN - removed from paper
+            if 'TransformerGNN' in model_name or 'transformer' in model_name.lower():
+                continue
+            
             if preds is not None and len(preds) > 0:
                 ax = axes[plot_idx]
                 
                 # Get clean model name
-                clean_name = model_name.replace('_30min', '').replace('_Intraday', '')
+                clean_name = model_name.replace('_30min', '').replace('_Intraday', '').replace('_Stable', '')
                 model_key = clean_name.lower()
                 color = COLORS.get(model_key, '#34495E')
                 
@@ -819,8 +892,11 @@ class AcademicPlotter:
                        fontsize=8, verticalalignment='top', horizontalalignment='right',
                        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
                 
-                # Highlight HAR
-                if 'HAR' in model_name:
+                # Highlight PNA (PROPOSED) and HAR (BASELINE)
+                if 'PNA' in model_name:
+                    ax.set_facecolor('#fff0f0')
+                    ax.set_title(f'{clean_name} Predictions (PROPOSED MODEL)', fontweight='bold', color=COLORS['pna'], fontsize=11)
+                elif 'HAR' in model_name:
                     ax.set_facecolor('#f0f0ff')
                     ax.set_title(f'{clean_name} Predictions (BASELINE)', fontweight='bold', color=COLORS['har'])
                 
